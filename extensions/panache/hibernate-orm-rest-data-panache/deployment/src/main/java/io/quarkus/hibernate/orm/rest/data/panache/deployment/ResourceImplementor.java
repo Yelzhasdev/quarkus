@@ -7,6 +7,7 @@ import javax.enterprise.context.ApplicationScoped;
 import org.jboss.jandex.FieldInfo;
 import org.jboss.logging.Logger;
 
+import io.quarkus.gizmo.BranchResult;
 import io.quarkus.gizmo.BytecodeCreator;
 import io.quarkus.gizmo.ClassCreator;
 import io.quarkus.gizmo.ClassOutput;
@@ -40,6 +41,7 @@ class ResourceImplementor {
     String implement(ClassOutput classOutput, DataAccessImplementor dataAccessImplementor, String resourceType,
             String entityType) {
         String className = resourceType + "Impl_" + HashUtil.sha1(resourceType);
+        LOGGER.info("Should be last");
         LOGGER.tracef("Starting generation of '%s'", className);
         ClassCreator classCreator = ClassCreator.builder()
                 .classOutput(classOutput)
@@ -115,7 +117,8 @@ class ResourceImplementor {
         ResultHandle entity = methodCreator.getMethodParam(1);
         // Set entity ID before executing an update to make sure that a requested object ID matches a given entity ID.
         setId(methodCreator, entityType, entity, id);
-        methodCreator.returnValue(dataAccessImplementor.updatePatch(methodCreator, entity, id));
+        ResultHandle targetEntity = dataAccessImplementor.findById(methodCreator, id);
+        methodCreator.returnValue(updateChangedFields(methodCreator, entityType, entity, targetEntity));
         methodCreator.close();
     }
 
@@ -124,6 +127,21 @@ class ResourceImplementor {
         ResultHandle id = methodCreator.getMethodParam(0);
         methodCreator.returnValue(dataAccessImplementor.deleteById(methodCreator, id));
         methodCreator.close();
+    }
+
+    private ResultHandle updateChangedFields(BytecodeCreator creator, String entityType, ResultHandle entity,
+            ResultHandle targetEntity) {
+        List<FieldInfo> allFields = entityClassHelper.getAllFields(entityType);
+        LOGGER.info("Fields Class name: " + entityType);
+        LOGGER.info("Fields count: " + allFields.size());
+        allFields.forEach(field -> {
+            MethodDescriptor getter = entityClassHelper.getGetter(entityType, field);
+            ResultHandle fieldValue = creator.invokeVirtualMethod(getter, entity);
+            BranchResult notNull = creator.ifNotNull(fieldValue);
+            MethodDescriptor setter = entityClassHelper.getSetter(entityType, field);
+            notNull.trueBranch().invokeVirtualMethod(setter, targetEntity, fieldValue);
+        });
+        return targetEntity;
     }
 
     private void setId(BytecodeCreator creator, String entityType, ResultHandle entity, ResultHandle id) {

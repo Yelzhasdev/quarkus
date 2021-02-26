@@ -70,7 +70,6 @@ class JaxRsResourceImplementor {
         ClassCreator classCreator = ClassCreator.builder()
                 .classOutput(classOutput).className(controllerClassName)
                 .build();
-
         implementClassAnnotations(classCreator, resourceProperties);
         FieldDescriptor resourceField = implementResourceField(classCreator, resourceMetadata);
         implementMethods(classCreator, resourceMetadata, resourceProperties, resourceField);

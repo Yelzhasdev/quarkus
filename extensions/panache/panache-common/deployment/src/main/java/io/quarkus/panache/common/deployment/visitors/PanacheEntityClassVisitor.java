@@ -27,6 +27,7 @@ import org.jboss.jandex.FieldInfo;
 import org.jboss.jandex.IndexView;
 import org.jboss.jandex.MethodInfo;
 import org.jboss.jandex.TypeVariable;
+import org.jboss.logging.Logger;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
@@ -49,6 +50,8 @@ import io.quarkus.panache.common.deployment.PanacheMovingAnnotationVisitor;
 import io.quarkus.panache.common.deployment.TypeBundle;
 
 public abstract class PanacheEntityClassVisitor<EntityFieldType extends EntityField> extends ClassVisitor {
+
+    private static final Logger LOGGER = Logger.getLogger(PanacheEntityClassVisitor.class);
 
     protected Type thisClass;
     protected final Map<String, ? extends EntityFieldType> fields;
@@ -313,6 +316,7 @@ public abstract class PanacheEntityClassVisitor<EntityFieldType extends EntityFi
         for (EntityField field : fields.values()) {
             // Getter
             String getterName = field.getGetterName();
+            LOGGER.info("Getter name: " + getterName);
             String getterDescriptor = "()" + field.descriptor;
             if (!userMethods.contains(getterName + "/" + getterDescriptor)) {
                 MethodVisitor mv = super.visitMethod(Opcodes.ACC_PUBLIC,

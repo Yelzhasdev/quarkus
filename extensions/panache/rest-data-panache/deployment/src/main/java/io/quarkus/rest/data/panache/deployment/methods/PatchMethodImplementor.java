@@ -14,17 +14,17 @@ import io.quarkus.rest.data.panache.deployment.ResourceMetadata;
 import io.quarkus.rest.data.panache.deployment.properties.ResourceProperties;
 import io.quarkus.rest.data.panache.deployment.utils.ResponseImplementor;
 
-public final class UpdatePatchMethodImplementor extends StandardMethodImplementor {
+public final class PatchMethodImplementor extends StandardMethodImplementor {
 
-    private static final String METHOD_NAME = "updatePatch";
+    private static final String METHOD_NAME = "patch";
 
-    private static final String RESOURCE_UPDATE_PATCH_METHOD_NAME = "updatePatch";
+    private static final String RESOURCE_UPDATE_PATCH_METHOD_NAME = "patch";
 
     private static final String RESOURCE_UPDATE_METHOD_NAME = "update";
 
     private static final String RESOURCE_GET_METHOD_NAME = "get";
 
-    private static final String REL = "updatePatch";
+    private static final String REL = "patch";
 
     @Override
     protected void implementInternal(ClassCreator classCreator, ResourceMetadata resourceMetadata,

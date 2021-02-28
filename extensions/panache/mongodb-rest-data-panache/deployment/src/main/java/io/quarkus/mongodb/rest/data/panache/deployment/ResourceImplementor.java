@@ -1,5 +1,7 @@
 package io.quarkus.mongodb.rest.data.panache.deployment;
 
+import static io.quarkus.gizmo.MethodDescriptor.ofMethod;
+
 import java.util.List;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -7,6 +9,8 @@ import javax.enterprise.context.ApplicationScoped;
 import org.jboss.jandex.FieldInfo;
 import org.jboss.logging.Logger;
 
+import io.quarkus.deployment.bean.JavaBeanUtil;
+import io.quarkus.gizmo.BranchResult;
 import io.quarkus.gizmo.BytecodeCreator;
 import io.quarkus.gizmo.ClassCreator;
 import io.quarkus.gizmo.ClassOutput;
@@ -49,7 +53,7 @@ class ResourceImplementor {
         implementGet(classCreator, dataAccessImplementor);
         implementAdd(classCreator, dataAccessImplementor);
         implementUpdate(classCreator, dataAccessImplementor, entityType);
-        implementUpdatePatch(classCreator, dataAccessImplementor, entityType);
+        implementPatch(classCreator, dataAccessImplementor, entityType);
         implementDelete(classCreator, dataAccessImplementor);
 
         classCreator.close();
@@ -97,15 +101,21 @@ class ResourceImplementor {
         methodCreator.close();
     }
 
-    private void implementUpdatePatch(ClassCreator classCreator, DataAccessImplementor dataAccessImplementor,
+    private void implementPatch(ClassCreator classCreator, DataAccessImplementor dataAccessImplementor,
             String entityType) {
-        MethodCreator methodCreator = classCreator.getMethodCreator("updatePatch", Object.class, Object.class, Object.class);
+        MethodCreator methodCreator = classCreator.getMethodCreator("patch", Object.class, Object.class, Object.class);
         methodCreator.addException(NoSuchFieldException.class);
         methodCreator.addException(IllegalAccessException.class);
         ResultHandle id = methodCreator.getMethodParam(0);
         ResultHandle entity = methodCreator.getMethodParam(1);
         setId(methodCreator, entityType, entity, id);
-        methodCreator.returnValue(dataAccessImplementor.updatePatch(methodCreator, entity, id));
+        ResultHandle targetEntity = dataAccessImplementor.findById(methodCreator, id);
+        try {
+            updateChangedFields(methodCreator, entityType, entity, targetEntity);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        methodCreator.returnValue(dataAccessImplementor.persistOrUpdate(methodCreator, targetEntity));
         methodCreator.close();
     }
 
@@ -114,6 +124,22 @@ class ResourceImplementor {
         ResultHandle id = methodCreator.getMethodParam(0);
         methodCreator.returnValue(dataAccessImplementor.deleteById(methodCreator, id));
         methodCreator.close();
+    }
+
+    private void updateChangedFields(BytecodeCreator creator, String entityType, ResultHandle entity,
+            ResultHandle targetEntity) throws ClassNotFoundException {
+        List<FieldInfo> allFields = entityClassHelper.getAllFields(entityType);
+        Class<?> clazz = Class.forName(entityType);
+        for (FieldInfo field : allFields) {
+            Class<?> fieldClass = Class.forName(field.type().name().toString());
+            ResultHandle fieldValue = creator.invokeVirtualMethod(ofMethod(clazz,
+                    JavaBeanUtil.getGetterName(field.name(), field.type().name()), fieldClass), entity);
+            BranchResult notNull = creator.ifNotNull(fieldValue);
+            MethodDescriptor setter = ofMethod(clazz, JavaBeanUtil.getSetterName(field.name()),
+                    void.class,
+                    fieldClass);
+            notNull.trueBranch().invokeVirtualMethod(setter, targetEntity, fieldValue);
+        }
     }
 
     private void setId(BytecodeCreator creator, String entityType, ResultHandle entity, ResultHandle id) {

@@ -1,4 +1,6 @@
 package io.quarkus.mongodb.panache.deployment;
 
-public class MongoDBSequenceBuildItem {
+import io.quarkus.builder.item.EmptyBuildItem;
+
+public final class MongoDBSequenceBuildItem extends EmptyBuildItem {
 }

@@ -1,14 +1,5 @@
 package io.quarkus.mongodb.rest.data.panache.deployment;
 
-import static io.quarkus.gizmo.MethodDescriptor.ofMethod;
-
-import java.util.List;
-
-import javax.enterprise.context.ApplicationScoped;
-
-import org.jboss.jandex.FieldInfo;
-import org.jboss.logging.Logger;
-
 import io.quarkus.deployment.bean.JavaBeanUtil;
 import io.quarkus.gizmo.BranchResult;
 import io.quarkus.gizmo.BytecodeCreator;
@@ -20,7 +11,16 @@ import io.quarkus.gizmo.ResultHandle;
 import io.quarkus.panache.common.Page;
 import io.quarkus.panache.common.Sort;
 import io.quarkus.rest.data.panache.deployment.Constants;
+import io.quarkus.rest.data.panache.deployment.utils.CollectionImplementor;
 import io.quarkus.runtime.util.HashUtil;
+import org.jboss.jandex.FieldInfo;
+import org.jboss.logging.Logger;
+
+import java.util.HashMap;
+import java.util.List;
+import javax.enterprise.context.ApplicationScoped;
+
+import static io.quarkus.gizmo.MethodDescriptor.ofMethod;
 
 /**
  * {@link io.quarkus.rest.data.panache.RestDataResource} implementor that generates data access logic depending on which
@@ -32,6 +32,8 @@ class ResourceImplementor {
     private static final Logger LOGGER = Logger.getLogger(ResourceImplementor.class);
 
     private final EntityClassHelper entityClassHelper;
+
+    private final CollectionImplementor collectionImplementor = new CollectionImplementor();
 
     ResourceImplementor(EntityClassHelper entityClassHelper) {
         this.entityClassHelper = entityClassHelper;
@@ -103,15 +105,16 @@ class ResourceImplementor {
 
     private void implementPatch(ClassCreator classCreator, DataAccessImplementor dataAccessImplementor,
             String entityType) {
-        MethodCreator methodCreator = classCreator.getMethodCreator("patch", Object.class, Object.class, Object.class);
+        MethodCreator methodCreator = classCreator.getMethodCreator("patch", Object.class, Object.class, HashMap.class);
         methodCreator.addException(NoSuchFieldException.class);
         methodCreator.addException(IllegalAccessException.class);
         ResultHandle id = methodCreator.getMethodParam(0);
-        ResultHandle entity = methodCreator.getMethodParam(1);
-        setId(methodCreator, entityType, entity, id);
+        ResultHandle jsonMap = methodCreator.getMethodParam(1);
+        LOGGER.info("jsonMap: " + jsonMap.toString());
+        //        setId(methodCreator, entityType, entity, id);
         ResultHandle targetEntity = dataAccessImplementor.findById(methodCreator, id);
         try {
-            updateChangedFields(methodCreator, entityType, entity, targetEntity);
+            updateChangedFields(methodCreator, entityType, jsonMap, targetEntity);
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
@@ -126,20 +129,24 @@ class ResourceImplementor {
         methodCreator.close();
     }
 
-    private void updateChangedFields(BytecodeCreator creator, String entityType, ResultHandle entity,
+    private void updateChangedFields(BytecodeCreator creator, String entityType, ResultHandle entityMap,
             ResultHandle targetEntity) throws ClassNotFoundException {
-        List<FieldInfo> allFields = entityClassHelper.getAllFields(entityType);
+//        List<FieldInfo> allFields = entityClassHelper.getAllFields(entityType);
         Class<?> clazz = Class.forName(entityType);
-        for (FieldInfo field : allFields) {
-            Class<?> fieldClass = Class.forName(field.type().name().toString());
-            ResultHandle fieldValue = creator.invokeVirtualMethod(ofMethod(clazz,
-                    JavaBeanUtil.getGetterName(field.name(), field.type().name()), fieldClass), entity);
-            BranchResult notNull = creator.ifNotNull(fieldValue);
-            MethodDescriptor setter = ofMethod(clazz, JavaBeanUtil.getSetterName(field.name()),
-                    void.class,
-                    fieldClass);
-            notNull.trueBranch().invokeVirtualMethod(setter, targetEntity, fieldValue);
-        }
+        ResultHandle mapKeySet = creator.invokeVirtualMethod(ofMethod(HashMap.class,"keySet",List.class),entityMap);
+        ResultHandle iteratorFromKeySet = collectionImplementor.iteratorFromList(creator,mapKeySet);
+        BytecodeCreator loopCreator = creator.whileLoop(c -> collectionImplementor.iteratorHasNext(c, iteratorFromKeySet)).block();
+        ResultHandle keyNext = collectionImplementor.getNext(loopCreator, iteratorFromKeySet, String.class);
+//        for (FieldInfo field : allFields) {
+//            Class<?> fieldClass = Class.forName(field.type().name().toString());
+//            ResultHandle fieldValue = creator.invokeVirtualMethod(ofMethod(clazz,
+//                    JavaBeanUtil.getGetterName(field.name(), field.type().name()), fieldClass), entityMap);
+//            BranchResult notNull = creator.ifNotNull(fieldValue);
+//            MethodDescriptor setter = ofMethod(clazz, JavaBeanUtil.getSetterName(field.name()),
+//                    void.class,
+//                    fieldClass);
+//            notNull.trueBranch().invokeVirtualMethod(setter, targetEntity, fieldValue);
+//        }
     }
 
     private void setId(BytecodeCreator creator, String entityType, ResultHandle entity, ResultHandle id) {

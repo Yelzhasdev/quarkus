@@ -18,8 +18,8 @@ import io.quarkus.rest.data.panache.deployment.methods.DeleteMethodImplementor;
 import io.quarkus.rest.data.panache.deployment.methods.GetMethodImplementor;
 import io.quarkus.rest.data.panache.deployment.methods.ListMethodImplementor;
 import io.quarkus.rest.data.panache.deployment.methods.MethodImplementor;
+import io.quarkus.rest.data.panache.deployment.methods.PatchMethodImplementor;
 import io.quarkus.rest.data.panache.deployment.methods.UpdateMethodImplementor;
-import io.quarkus.rest.data.panache.deployment.methods.UpdatePatchMethodImplementor;
 import io.quarkus.rest.data.panache.deployment.methods.hal.AddHalMethodImplementor;
 import io.quarkus.rest.data.panache.deployment.methods.hal.GetHalMethodImplementor;
 import io.quarkus.rest.data.panache.deployment.methods.hal.ListHalMethodImplementor;
@@ -44,7 +44,7 @@ class JaxRsResourceImplementor {
             new AddHalMethodImplementor(),
             new UpdateMethodImplementor(),
             new UpdateHalMethodImplementor(),
-            new UpdatePatchMethodImplementor(),
+            new PatchMethodImplementor(),
             new UpdatePatchHalMethodImplementor(),
             new DeleteMethodImplementor());
 

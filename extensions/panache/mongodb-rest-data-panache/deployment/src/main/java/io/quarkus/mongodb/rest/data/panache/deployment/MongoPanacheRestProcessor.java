@@ -17,11 +17,13 @@ import io.quarkus.arc.deployment.GeneratedBeanGizmoAdaptor;
 import io.quarkus.arc.deployment.UnremovableBeanBuildItem;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
+import io.quarkus.deployment.annotations.Consume;
 import io.quarkus.deployment.builditem.BytecodeTransformerBuildItem;
 import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.gizmo.ClassOutput;
 import io.quarkus.gizmo.Gizmo;
+import io.quarkus.mongodb.panache.deployment.MongoDBSequenceBuildItem;
 import io.quarkus.mongodb.rest.data.panache.PanacheMongoEntityResource;
 import io.quarkus.mongodb.rest.data.panache.PanacheMongoRepositoryResource;
 import io.quarkus.rest.data.panache.deployment.ResourceMetadata;
@@ -36,11 +38,13 @@ class MongoPanacheRestProcessor {
             .createSimple(PanacheMongoRepositoryResource.class.getName());
 
     @BuildStep
+    @Consume(MongoDBSequenceBuildItem.class)
     FeatureBuildItem feature() {
         return new FeatureBuildItem(MONGODB_REST_DATA_PANACHE);
     }
 
     @BuildStep
+    @Consume(MongoDBSequenceBuildItem.class)
     void findEntityResources(CombinedIndexBuildItem index,
             BuildProducer<GeneratedBeanBuildItem> implementationsProducer,
             BuildProducer<RestDataResourceBuildItem> restDataResourceProducer) {
@@ -66,6 +70,7 @@ class MongoPanacheRestProcessor {
     }
 
     @BuildStep
+    @Consume(MongoDBSequenceBuildItem.class)
     void findRepositoryResources(CombinedIndexBuildItem index,
             BuildProducer<GeneratedBeanBuildItem> implementationsProducer,
             BuildProducer<RestDataResourceBuildItem> restDataResourceProducer,

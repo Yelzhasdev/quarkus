@@ -16,7 +16,7 @@ import io.quarkus.panache.common.Sort;
 /**
  * Implement data access using active record.
  */
-final class EntityDataAccessImplementor extends AbstractDataAccessImplementor implements DataAccessImplementor {
+final class EntityDataAccessImplementor implements DataAccessImplementor {
 
     private final String entityClassName;
 
@@ -63,16 +63,6 @@ final class EntityDataAccessImplementor extends AbstractDataAccessImplementor im
                 ofMethod(entityClassName, "getEntityManager", EntityManager.class), entity);
         return creator.invokeInterfaceMethod(
                 ofMethod(EntityManager.class, "merge", Object.class, Object.class), entityManager, entity);
-    }
-
-    @Override
-    public ResultHandle updatePatch(BytecodeCreator creator, ResultHandle entity, ResultHandle id) {
-        ResultHandle entityFound = findById(creator, id);
-        ResultHandle entityManager = creator.invokeVirtualMethod(
-                ofMethod(entityClassName, "getEntityManager", EntityManager.class), entityFound);
-        specificFieldUpdate(creator, entityFound, entity);
-        return creator.invokeInterfaceMethod(
-                ofMethod(EntityManager.class, "merge", Object.class, Object.class), entityManager, entityFound);
     }
 
     /**

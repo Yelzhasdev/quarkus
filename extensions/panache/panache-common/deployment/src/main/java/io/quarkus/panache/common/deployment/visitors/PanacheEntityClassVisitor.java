@@ -316,8 +316,8 @@ public abstract class PanacheEntityClassVisitor<EntityFieldType extends EntityFi
         for (EntityField field : fields.values()) {
             // Getter
             String getterName = field.getGetterName();
-            LOGGER.info("Getter name: " + getterName);
             String getterDescriptor = "()" + field.descriptor;
+            LOGGER.info("HERE WE GO AGAIN");
             if (!userMethods.contains(getterName + "/" + getterDescriptor)) {
                 MethodVisitor mv = super.visitMethod(Opcodes.ACC_PUBLIC,
                         getterName, getterDescriptor, field.signature == null ? null : "()" + field.signature, null);

@@ -89,7 +89,7 @@ public class EntityClassHelper {
             return getter;
         }
         return MethodDescriptor.ofMethod(entityClass.toString(),
-                EnhancerConstants.PERSISTENT_FIELD_READER_PREFIX + field.name(), field.type().toString());
+                EnhancerConstants.PERSISTENT_FIELD_READER_PREFIX + field.name(), field.type().name().toString());
 
     }
 

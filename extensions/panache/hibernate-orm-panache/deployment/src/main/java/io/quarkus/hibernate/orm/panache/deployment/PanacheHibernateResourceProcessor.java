@@ -19,7 +19,6 @@ import javax.persistence.Id;
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
-import org.jboss.logging.Logger;
 
 import io.quarkus.arc.deployment.UnremovableBeanBuildItem;
 import io.quarkus.arc.deployment.ValidationPhaseBuildItem;
@@ -56,7 +55,6 @@ import io.quarkus.panache.common.deployment.PanacheMethodCustomizer;
 import io.quarkus.panache.common.deployment.PanacheMethodCustomizerBuildItem;
 
 public final class PanacheHibernateResourceProcessor {
-    private static final Logger LOGGER = Logger.getLogger(PanacheHibernateResourceProcessor.class);
 
     static final DotName DOTNAME_PANACHE_REPOSITORY_BASE = DotName.createSimple(PanacheRepositoryBase.class.getName());
     private static final DotName DOTNAME_PANACHE_REPOSITORY = DotName.createSimple(PanacheRepository.class.getName());
@@ -125,7 +123,7 @@ public final class PanacheHibernateResourceProcessor {
             List<PanacheEntityClassBuildItem> entityClasses,
             Optional<JpaModelPersistenceUnitMappingBuildItem> jpaModelPersistenceUnitMapping,
             List<PanacheMethodCustomizerBuildItem> methodCustomizersBuildItems) {
-        LOGGER.info("Resource implementor");
+
         List<PanacheMethodCustomizer> methodCustomizers = methodCustomizersBuildItems.stream()
                 .map(PanacheMethodCustomizerBuildItem::getMethodCustomizer).collect(Collectors.toList());
 

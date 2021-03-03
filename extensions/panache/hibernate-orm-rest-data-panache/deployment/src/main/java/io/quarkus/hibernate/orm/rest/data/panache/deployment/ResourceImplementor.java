@@ -41,7 +41,6 @@ class ResourceImplementor {
     String implement(ClassOutput classOutput, DataAccessImplementor dataAccessImplementor, String resourceType,
             String entityType) {
         String className = resourceType + "Impl_" + HashUtil.sha1(resourceType);
-        LOGGER.info("Should be last");
         LOGGER.tracef("Starting generation of '%s'", className);
         ClassCreator classCreator = ClassCreator.builder()
                 .classOutput(classOutput)
@@ -55,7 +54,7 @@ class ResourceImplementor {
         implementGet(classCreator, dataAccessImplementor);
         implementAdd(classCreator, dataAccessImplementor);
         implementUpdate(classCreator, dataAccessImplementor, entityType);
-        implementUpdatePatch(classCreator, dataAccessImplementor, entityType);
+        implementPatch(classCreator, dataAccessImplementor, entityType);
         implementDelete(classCreator, dataAccessImplementor);
 
         classCreator.close();
@@ -108,9 +107,9 @@ class ResourceImplementor {
         methodCreator.close();
     }
 
-    private void implementUpdatePatch(ClassCreator classCreator, DataAccessImplementor dataAccessImplementor,
+    private void implementPatch(ClassCreator classCreator, DataAccessImplementor dataAccessImplementor,
             String entityType) {
-        MethodCreator methodCreator = classCreator.getMethodCreator("updatePatch", Object.class, Object.class, Object.class);
+        MethodCreator methodCreator = classCreator.getMethodCreator("patch", Object.class, Object.class, Object.class);
         methodCreator.addException(NoSuchFieldException.class);
         methodCreator.addException(IllegalAccessException.class);
         ResultHandle id = methodCreator.getMethodParam(0);
@@ -118,7 +117,8 @@ class ResourceImplementor {
         // Set entity ID before executing an update to make sure that a requested object ID matches a given entity ID.
         setId(methodCreator, entityType, entity, id);
         ResultHandle targetEntity = dataAccessImplementor.findById(methodCreator, id);
-        methodCreator.returnValue(updateChangedFields(methodCreator, entityType, entity, targetEntity));
+        updateChangedFields(methodCreator, entityType, entity, targetEntity);
+        methodCreator.returnValue(dataAccessImplementor.update(methodCreator, targetEntity));
         methodCreator.close();
     }
 
@@ -129,19 +129,16 @@ class ResourceImplementor {
         methodCreator.close();
     }
 
-    private ResultHandle updateChangedFields(BytecodeCreator creator, String entityType, ResultHandle entity,
+    private void updateChangedFields(BytecodeCreator creator, String entityType, ResultHandle entity,
             ResultHandle targetEntity) {
         List<FieldInfo> allFields = entityClassHelper.getAllFields(entityType);
-        LOGGER.info("Fields Class name: " + entityType);
-        LOGGER.info("Fields count: " + allFields.size());
-        allFields.forEach(field -> {
+        for (FieldInfo field : allFields) {
             MethodDescriptor getter = entityClassHelper.getGetter(entityType, field);
             ResultHandle fieldValue = creator.invokeVirtualMethod(getter, entity);
             BranchResult notNull = creator.ifNotNull(fieldValue);
             MethodDescriptor setter = entityClassHelper.getSetter(entityType, field);
             notNull.trueBranch().invokeVirtualMethod(setter, targetEntity, fieldValue);
-        });
-        return targetEntity;
+        }
     }
 
     private void setId(BytecodeCreator creator, String entityType, ResultHandle entity, ResultHandle id) {

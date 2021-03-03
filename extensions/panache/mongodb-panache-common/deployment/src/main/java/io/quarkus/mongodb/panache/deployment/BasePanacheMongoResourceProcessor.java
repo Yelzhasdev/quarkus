@@ -4,6 +4,7 @@ import static io.quarkus.deployment.util.JandexUtil.resolveTypeParameters;
 import static io.quarkus.panache.common.deployment.PanacheEntityEnhancer.META_INF_PANACHE_ARCHIVE_MARKER;
 import static org.jboss.jandex.DotName.createSimple;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -26,6 +27,9 @@ import org.jboss.jandex.FieldInfo;
 import org.jboss.jandex.IndexView;
 import org.jboss.jandex.MethodInfo;
 import org.jboss.jandex.Type;
+import org.jboss.logging.Logger;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassWriter;
 
 import io.quarkus.arc.deployment.ValidationPhaseBuildItem;
 import io.quarkus.bootstrap.classloading.ClassPathElement;
@@ -34,11 +38,13 @@ import io.quarkus.builder.BuildException;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.annotations.ExecutionTime;
+import io.quarkus.deployment.annotations.Produce;
 import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.bean.JavaBeanUtil;
 import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
 import io.quarkus.deployment.builditem.BytecodeTransformerBuildItem;
 import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
+import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
 import io.quarkus.deployment.util.JandexUtil;
 import io.quarkus.jackson.spi.JacksonModuleBuildItem;
@@ -61,6 +67,7 @@ import io.quarkus.panache.common.deployment.PanacheRepositoryEnhancer;
 import io.quarkus.panache.common.deployment.TypeBundle;
 
 public abstract class BasePanacheMongoResourceProcessor {
+    private static final Logger LOGGER = Logger.getLogger(BasePanacheMongoResourceProcessor.class);
     public static final DotName BSON_ID = createSimple(BsonId.class.getName());
     public static final DotName BSON_IGNORE = createSimple(BsonIgnore.class.getName());
     public static final DotName BSON_PROPERTY = createSimple(BsonProperty.class.getName());
@@ -69,17 +76,20 @@ public abstract class BasePanacheMongoResourceProcessor {
     public static final DotName PROJECTION_FOR = createSimple(ProjectionFor.class.getName());
 
     @BuildStep
+    @Produce(MongoDBSequenceBuildItem.class)
     public void buildImperative(CombinedIndexBuildItem index,
             BuildProducer<BytecodeTransformerBuildItem> transformers,
             BuildProducer<ReflectiveClassBuildItem> reflectiveClass,
+            BuildProducer<GeneratedClassBuildItem> generatedClassesProducer,
             BuildProducer<PropertyMappingClassBuildStep> propertyMappingClass,
             List<PanacheMethodCustomizerBuildItem> methodCustomizersBuildItems) {
-
+        LOGGER.info("M<D FAILURE");
         List<PanacheMethodCustomizer> methodCustomizers = methodCustomizersBuildItems.stream()
                 .map(bi -> bi.getMethodCustomizer()).collect(Collectors.toList());
 
         processTypes(index, transformers, reflectiveClass, propertyMappingClass, getImperativeTypeBundle(),
                 createRepositoryEnhancer(index, methodCustomizers), createEntityEnhancer(index, methodCustomizers));
+        LOGGER.info("M<D END");
     }
 
     @BuildStep
@@ -88,12 +98,14 @@ public abstract class BasePanacheMongoResourceProcessor {
             BuildProducer<PropertyMappingClassBuildStep> propertyMappingClass,
             BuildProducer<BytecodeTransformerBuildItem> transformers,
             List<PanacheMethodCustomizerBuildItem> methodCustomizersBuildItems) {
+        LOGGER.info("M<D FAILURE REACTIVE");
         List<PanacheMethodCustomizer> methodCustomizers = methodCustomizersBuildItems.stream()
                 .map(bi -> bi.getMethodCustomizer()).collect(Collectors.toList());
 
         processTypes(index, transformers, reflectiveClass, propertyMappingClass, getReactiveTypeBundle(),
                 createReactiveRepositoryEnhancer(index, methodCustomizers),
                 createReactiveEntityEnhancer(index, methodCustomizers));
+        LOGGER.info("M<D END REACTIVE");
     }
 
     @BuildStep
@@ -258,11 +270,20 @@ public abstract class BasePanacheMongoResourceProcessor {
             if (modelClasses.add(classInfo.name().toString()))
                 entityEnhancer.collectFields(classInfo);
         }
-
+        LOGGER.info("Start producing " + modelClasses.size());
         // iterate over all the entity classes
         for (String modelClass : modelClasses) {
-            transformers.produce(new BytecodeTransformerBuildItem(modelClass, entityEnhancer));
+            ClassReader classReader = null;
+            try {
+                classReader = new ClassReader(modelClass);
+                ClassWriter classWriter = new ClassWriter(classReader, 0);
+                classReader.accept(entityEnhancer.apply(modelClass, classWriter), 0);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 
+            transformers.produce(new BytecodeTransformerBuildItem(modelClass, entityEnhancer));
+            LOGGER.info("produced");
             //register for reflection entity classes
             reflectiveClass.produce(new ReflectiveClassBuildItem(true, true, modelClass));
 
